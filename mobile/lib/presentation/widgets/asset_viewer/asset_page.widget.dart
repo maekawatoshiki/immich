@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:auto_route/auto_route.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart' show Drag, kTouchSlop;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/domain/models/asset/base_asset.model.dart';
 import 'package:immich_mobile/domain/models/events.model.dart';
@@ -23,6 +26,8 @@ import 'package:immich_mobile/providers/asset_viewer/is_motion_video_playing.pro
 import 'package:immich_mobile/providers/infrastructure/settings.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/timeline.provider.dart';
 import 'package:immich_mobile/providers/view_intent/view_intent_file_path.provider.dart';
+import 'package:immich_mobile/services/api.service.dart';
+import 'package:immich_mobile/utils/image_url_builder.dart';
 import 'package:immich_mobile/widgets/common/immich_loading_indicator.dart';
 import 'package:immich_mobile/widgets/photo_view/photo_view.dart';
 
@@ -43,6 +48,12 @@ class _AssetPageState extends ConsumerState<AssetPage> {
   PhotoViewControllerBase? _viewController;
   StreamSubscription? _scaleBoundarySub;
   StreamSubscription? _eventSubscription;
+  MethodChannel? _ultraHdrChannel;
+  bool? _lastUltraHdrGestureEnabled;
+  bool? _lastUltraHdrDismissEnabled;
+  bool? _lastUltraHdrHdrEnabled;
+  bool _currentUltraHdrHdrEnabled = false;
+  final bool _preferNativeUltraHdrActivity = Platform.isAndroid;
 
   AssetViewerStateNotifier get _viewer => ref.read(assetViewerProvider.notifier);
 
@@ -86,6 +97,7 @@ class _AssetPageState extends ConsumerState<AssetPage> {
 
   @override
   void dispose() {
+    _detachUltraHdrChannel();
     _scrollController.dispose();
     unawaited(_scaleBoundarySub?.cancel());
     unawaited(_eventSubscription?.cancel());
@@ -275,20 +287,137 @@ class _AssetPageState extends ConsumerState<AssetPage> {
   void _onLongPress(BuildContext context, LongPressStartDetails details, PhotoViewControllerValue controllerValue) =>
       ref.read(isPlayingMotionVideoProvider.notifier).playing = true;
 
-  void _onScaleStateChanged(PhotoViewScaleState scaleState) {
-    _isZoomed = scaleState == PhotoViewScaleState.zoomedIn || scaleState == PhotoViewScaleState.covering;
+  void _applyZoomedState(bool zoomed) {
+    _isZoomed = zoomed;
     _viewer.setZoomed(_isZoomed);
 
-    if (scaleState != PhotoViewScaleState.initial) {
-      if (_dragStart == null) {
-        _viewer.setControls(false);
-      }
+    if (zoomed) {
+      if (_dragStart == null) _viewer.setControls(false);
       return;
     }
 
     if (!_showingDetails) {
       _viewer.setControls(true);
     }
+  }
+
+  void _onScaleStateChanged(PhotoViewScaleState scaleState) {
+    _applyZoomedState(switch (scaleState) {
+      PhotoViewScaleState.zoomedIn || PhotoViewScaleState.covering => true,
+      _ => false,
+    });
+  }
+
+  void _detachUltraHdrChannel() {
+    final channel = _ultraHdrChannel;
+    _ultraHdrChannel = null;
+    _lastUltraHdrGestureEnabled = null;
+    _lastUltraHdrDismissEnabled = null;
+    _lastUltraHdrHdrEnabled = null;
+    _currentUltraHdrHdrEnabled = false;
+    if (channel == null) {
+      return;
+    }
+
+    channel.setMethodCallHandler(null);
+  }
+
+  void _attachUltraHdrChannel(int viewId) {
+    _detachUltraHdrChannel();
+    final channel = MethodChannel('immich/ultra_hdr_image/$viewId');
+    _ultraHdrChannel = channel;
+    channel.setMethodCallHandler(_onUltraHdrMethodCall);
+    _syncUltraHdrInteractionState();
+  }
+
+  Future<void> _sendUltraHdrCommand(String method, Object? arguments) async {
+    final channel = _ultraHdrChannel;
+    if (channel == null) {
+      return;
+    }
+
+    try {
+      await channel.invokeMethod<void>(method, arguments);
+    } catch (_) {}
+  }
+
+  Future<void> _onUltraHdrMethodCall(MethodCall call) async {
+    final args = call.arguments;
+    final map = args is Map ? Map<Object?, Object?>.from(args) : const <Object?, Object?>{};
+
+    switch (call.method) {
+      case 'onSingleTap':
+        if (!_showingDetails && _dragStart == null) {
+          _viewer.toggleControls();
+        }
+        return;
+      case 'onZoomStateChanged':
+        final isAtBaseScale = map['isAtBaseScale'] as bool? ?? true;
+        _applyZoomedState(!isAtBaseScale);
+        return;
+      case 'onDismissDragUpdate':
+        if (!_showingDetails) {
+          final opacity = (map['opacity'] as num?)?.toDouble() ?? 1.0;
+          _viewer.setOpacity(opacity);
+        }
+        return;
+      case 'onDismissDragEnd':
+        if (_showingDetails) {
+          _viewer.setOpacity(1.0);
+          return;
+        }
+        final shouldPop = map['shouldPop'] as bool? ?? false;
+        if (shouldPop) {
+          unawaited(context.maybePop());
+        } else {
+          _viewer.setOpacity(1.0);
+        }
+        return;
+      case 'onDismissDragCancel':
+        _viewer.setOpacity(1.0);
+        return;
+      case 'onHdrStateChanged':
+        if (kDebugMode) {
+          final requested = map['hdrRequested'] as bool? ?? false;
+          final hasGainMap = map['hasGainMap'] as bool? ?? false;
+          final applied = map['colorModeHdrApplied'] as bool? ?? false;
+          final sdkInt = map['sdkInt'];
+          final sourceType = map['sourceType'];
+          debugPrint(
+            '[UltraHDR] requested=$requested hasGainMap=$hasGainMap applied=$applied sdk=$sdkInt source=$sourceType',
+          );
+        }
+        return;
+      default:
+        return;
+    }
+  }
+
+  void _syncUltraHdrInteractionState({bool? hdrEnabled}) {
+    if (hdrEnabled != null) {
+      _currentUltraHdrHdrEnabled = hdrEnabled;
+    }
+
+    final gestureEnabled = !_showingDetails;
+    if (_lastUltraHdrGestureEnabled != gestureEnabled) {
+      _lastUltraHdrGestureEnabled = gestureEnabled;
+      unawaited(_sendUltraHdrCommand('setGestureEnabled', gestureEnabled));
+    }
+
+    final dismissEnabled = !_showingDetails;
+    if (_lastUltraHdrDismissEnabled != dismissEnabled) {
+      _lastUltraHdrDismissEnabled = dismissEnabled;
+      unawaited(_sendUltraHdrCommand('setDismissEnabled', dismissEnabled));
+    }
+
+    if (_lastUltraHdrHdrEnabled != _currentUltraHdrHdrEnabled) {
+      _lastUltraHdrHdrEnabled = _currentUltraHdrHdrEnabled;
+      unawaited(_sendUltraHdrCommand('setHdrEnabled', _currentUltraHdrHdrEnabled));
+    }
+  }
+
+  void _onUltraHdrPlatformViewCreated(int viewId) {
+    _attachUltraHdrChannel(viewId);
   }
 
   void _listenForScaleBoundaries(PhotoViewControllerBase? controller) {
@@ -327,6 +456,32 @@ class _AssetPageState extends ConsumerState<AssetPage> {
     _listenForScaleBoundaries(controller);
   }
 
+  bool _canUseUltraHdrPath(BaseAsset asset) =>
+      Platform.isAndroid && asset.isImage && (asset.localId != null || asset.remoteId != null);
+
+  Map<String, Object?> _buildUltraHdrParams(BaseAsset asset, Size size, bool isCurrentPage) {
+    // For Ultra HDR fidelity, prefer the on-device original whenever it exists.
+    // This avoids server-side edited variants or remote pipeline differences.
+    final useLocalAsset = asset.localId != null && !asset.isEdited;
+    final localId = useLocalAsset ? asset.localId : null;
+    final remoteId = localId == null ? asset.remoteId : null;
+    final useEditedRemote = asset.isEdited;
+    final pixelRatio = MediaQuery.devicePixelRatioOf(context);
+
+    return {
+      "localId": localId,
+      "remoteUrl": remoteId == null ? null : getOriginalUrlForRemoteId(remoteId, edited: useEditedRemote),
+      "headers": remoteId == null ? <String, String>{} : ApiService.getRequestHeaders(),
+      "width": (size.width * pixelRatio).toInt(),
+      "height": (size.height * pixelRatio).toInt(),
+      "enableHdr": isCurrentPage,
+      "enableGesture": !_showingDetails,
+      "minScale": 1.0,
+      "maxScale": 6.0,
+      "doubleTapScale": 2.0,
+    };
+  }
+
   Widget _buildPhotoView({
     required BaseAsset asset,
     required PhotoViewHeroAttributes? heroAttributes,
@@ -338,6 +493,35 @@ class _AssetPageState extends ConsumerState<AssetPage> {
     final imageProvider = getFullImageProvider(asset, size: size, localFilePath: localFilePath);
 
     if (asset.isImage && !isPlayingMotionVideo) {
+      if (_canUseUltraHdrPath(asset)) {
+        if (_preferNativeUltraHdrActivity) {
+          if (_ultraHdrChannel != null) {
+            _detachUltraHdrChannel();
+          }
+        } else {
+          _viewController = null;
+          _scaleBoundarySub?.cancel();
+          _scaleBoundarySub = null;
+          _syncUltraHdrInteractionState(hdrEnabled: isCurrent);
+
+          return SizedBox(
+            key: ValueKey('ultra-hdr-${asset.heroTag}-$isCurrent'),
+            width: size.width,
+            height: size.height,
+            child: AndroidView(
+              viewType: 'immich/ultra_hdr_image',
+              onPlatformViewCreated: _onUltraHdrPlatformViewCreated,
+              creationParams: _buildUltraHdrParams(asset, size, isCurrent),
+              creationParamsCodec: const StandardMessageCodec(),
+            ),
+          );
+        }
+      }
+
+      if (_ultraHdrChannel != null) {
+        _detachUltraHdrChannel();
+      }
+
       return PhotoView(
         key: Key(asset.heroTag),
         index: widget.index,
@@ -363,6 +547,10 @@ class _AssetPageState extends ConsumerState<AssetPage> {
           child: Thumbnail.fromAsset(asset: asset, fit: BoxFit.contain),
         ),
       );
+    }
+
+    if (_ultraHdrChannel != null) {
+      _detachUltraHdrChannel();
     }
 
     return PhotoView.customChild(

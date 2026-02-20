@@ -25,7 +25,10 @@ import java.io.File
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 private const val MAX_PREALLOC_BYTES = 128 * 1024 * 1024
 
@@ -175,7 +178,7 @@ class RemoteImagesImpl(context: Context) : RemoteImageApi {
   }
 }
 
-private object ImageFetcherManager {
+internal object ImageFetcherManager {
   private lateinit var cacheDir: File
   private lateinit var fetcher: ImageFetcher
   private var initialized = false
@@ -202,6 +205,51 @@ private object ImageFetcherManager {
 
   fun clearCache(onCleared: (Result<Long>) -> Unit) {
     fetcher.clearCache(onCleared)
+  }
+
+  @Throws(Exception::class)
+  fun fetchBytesBlocking(
+    url: String,
+    headers: Map<String, String>,
+    signal: CancellationSignal,
+    timeoutSeconds: Long = 60,
+  ): ByteArray {
+    var buffer: NativeByteBuffer? = null
+    var error: Exception? = null
+    val latch = CountDownLatch(1)
+
+    fetch(
+      url,
+      headers,
+      signal,
+      onSuccess = {
+        buffer = it
+        latch.countDown()
+      },
+      onFailure = {
+        error = it
+        latch.countDown()
+      },
+    )
+
+    val completed = latch.await(timeoutSeconds, TimeUnit.SECONDS)
+    if (!completed) {
+      signal.cancel()
+      throw TimeoutException("Timed out fetching image data from $url")
+    }
+
+    error?.let { throw it }
+    val nativeBuffer = buffer ?: throw IOException("Empty response buffer")
+    return try {
+      if (nativeBuffer.offset == 0) {
+        ByteArray(0)
+      } else {
+        val wrapped = NativeBuffer.wrap(nativeBuffer.pointer, nativeBuffer.offset)
+        ByteArray(nativeBuffer.offset).also { wrapped.get(it) }
+      }
+    } finally {
+      nativeBuffer.free()
+    }
   }
 
   private fun invalidate() {
@@ -315,6 +363,7 @@ private class CronetImageFetcher : ImageFetcher {
     private val onFailure: (Exception) -> Unit,
     private val onComplete: () -> Unit,
   ) : UrlRequest.Callback() {
+    // Used for content-length unknown streaming path (NativeByteBuffer, grows as needed)
     private var buffer: NativeByteBuffer? = null
     private var error: Exception? = null
 

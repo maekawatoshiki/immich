@@ -9,6 +9,7 @@ import 'package:immich_mobile/extensions/build_context_extensions.dart';
 import 'package:immich_mobile/presentation/actions/action.widget.dart';
 import 'package:immich_mobile/presentation/actions/favorite.action.dart';
 import 'package:immich_mobile/presentation/widgets/action_buttons/motion_photo_action_button.widget.dart';
+import 'package:immich_mobile/presentation/widgets/asset_viewer/ultra_hdr_viewer_launcher.dart';
 import 'package:immich_mobile/presentation/widgets/asset_viewer/viewer_kebab_menu.widget.dart';
 import 'package:immich_mobile/providers/activity.provider.dart';
 import 'package:immich_mobile/providers/asset_viewer/asset_viewer.provider.dart';
@@ -66,6 +67,16 @@ class ViewerTopAppBar extends ConsumerWidget implements PreferredSizeWidget {
         ),
 
       const ActionIconButton(action: FavoriteAction(source: .viewer)),
+      if (canUseNativeUltraHdrViewer(asset))
+        IconButton(
+          icon: const Icon(Icons.hdr_auto_rounded),
+          onPressed: () async {
+            final shouldPopParent = await launchNativeUltraHdrViewer(context: context, asset: asset);
+            if (shouldPopParent && context.mounted) {
+              await context.maybePop();
+            }
+          },
+        ),
 
       ImmichColorOverride(color: null, child: ViewerKebabMenu(originalTheme: originalTheme)),
     ];
