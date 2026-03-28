@@ -9,7 +9,9 @@ import android.os.CancellationSignal
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.Gravity
 import android.widget.FrameLayout
+import android.widget.ProgressBar
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.math.roundToInt
@@ -22,6 +24,7 @@ class UltraHdrViewerActivity : Activity() {
   private lateinit var request: UltraHdrRequest
   private lateinit var rootView: FrameLayout
   private lateinit var imageView: ZoomableImageView
+  private var progressBar: ProgressBar? = null
 
   @Volatile
   private var destroyed = false
@@ -77,6 +80,18 @@ class UltraHdrViewerActivity : Activity() {
     }
 
     rootView.addView(imageView)
+
+    if (request.localId == null && request.remoteUrl != null) {
+      progressBar = ProgressBar(this).apply {
+        layoutParams = FrameLayout.LayoutParams(
+          FrameLayout.LayoutParams.WRAP_CONTENT,
+          FrameLayout.LayoutParams.WRAP_CONTENT,
+          Gravity.CENTER,
+        )
+      }
+      rootView.addView(progressBar)
+    }
+
     setContentView(rootView)
 
     loadImage(preferHdrQuality = true)
@@ -125,6 +140,10 @@ class UltraHdrViewerActivity : Activity() {
           return@post
         }
 
+        progressBar?.let { pb ->
+          rootView.removeView(pb)
+          progressBar = null
+        }
         imageView.setBitmap(decoded.bitmap)
         decodedHasGainMap = decoded.hasGainMap
         decodedForHdrQuality = preferHdrQuality
