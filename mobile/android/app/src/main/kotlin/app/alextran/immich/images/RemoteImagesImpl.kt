@@ -210,7 +210,7 @@ internal object ImageFetcherManager {
   @Throws(Exception::class)
   fun fetchBytesBlocking(
     url: String,
-    headers: Map<String, String>,
+    headers: Map<String, String> = emptyMap(),
     signal: CancellationSignal,
     timeoutSeconds: Long = 60,
   ): ByteArray {
@@ -220,7 +220,6 @@ internal object ImageFetcherManager {
 
     fetch(
       url,
-      headers,
       signal,
       onSuccess = {
         buffer = it

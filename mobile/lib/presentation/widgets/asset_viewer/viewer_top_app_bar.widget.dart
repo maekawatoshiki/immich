@@ -69,7 +69,7 @@ class ViewerTopAppBar extends ConsumerWidget implements PreferredSizeWidget {
       const ActionIconButton(action: FavoriteAction(source: .viewer)),
       if (canUseNativeUltraHdrViewer(asset))
         IconButton(
-          icon: const Icon(Icons.hdr_auto_rounded),
+          icon: const Icon(Icons.hdr_on_rounded),
           onPressed: () async {
             final shouldPopParent = await launchNativeUltraHdrViewer(context: context, asset: asset);
             if (shouldPopParent && context.mounted) {
