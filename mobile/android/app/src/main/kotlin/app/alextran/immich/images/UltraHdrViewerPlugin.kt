@@ -96,6 +96,12 @@ class UltraHdrViewerPlugin :
     val result = pendingResult ?: return false
     pendingResult = null
 
+    val errorCode = data?.getStringExtra(UltraHdrViewerContract.EXTRA_ERROR_CODE)
+    if (errorCode != null) {
+      result.error(errorCode, "Unable to decode image in the native HDR viewer", null)
+      return true
+    }
+
     val shouldPopParent =
       if (resultCode == Activity.RESULT_OK) {
         data?.getBooleanExtra(UltraHdrViewerContract.EXTRA_SHOULD_POP_PARENT, false) ?: false

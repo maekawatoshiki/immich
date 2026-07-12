@@ -292,7 +292,9 @@ class _AssetPageState extends ConsumerState<AssetPage> {
     _viewer.setZoomed(_isZoomed);
 
     if (zoomed) {
-      if (_dragStart == null) _viewer.setControls(false);
+      if (_dragStart == null) {
+        _viewer.setControls(false);
+      }
       return;
     }
 
