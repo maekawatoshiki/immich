@@ -13,10 +13,7 @@ bool canUseNativeUltraHdrViewer(BaseAsset asset) {
   return Platform.isAndroid && asset.isImage && (asset.localId != null || asset.remoteId != null);
 }
 
-Future<bool> launchNativeUltraHdrViewer({
-  required BuildContext context,
-  required BaseAsset asset,
-}) async {
+Future<bool> launchNativeUltraHdrViewer({required BuildContext context, required BaseAsset asset}) async {
   if (!canUseNativeUltraHdrViewer(asset)) {
     return false;
   }

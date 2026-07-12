@@ -21,6 +21,9 @@ internal object UltraHdrViewerContract {
   const val EXTRA_DOUBLE_TAP_SCALE = "doubleTapScale"
 
   const val EXTRA_SHOULD_POP_PARENT = "shouldPopParent"
+  const val EXTRA_ERROR_CODE = "errorCode"
+
+  const val ERROR_DECODE_FAILED = "DECODE_FAILED"
 
   fun writeRequest(intent: Intent, request: UltraHdrRequest) {
     intent.putExtra(EXTRA_LOCAL_ID, request.localId)
