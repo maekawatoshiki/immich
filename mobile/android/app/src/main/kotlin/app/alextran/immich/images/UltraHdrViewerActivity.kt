@@ -30,8 +30,6 @@ class UltraHdrViewerActivity : Activity() {
   private var destroyed = false
 
   private var decodedHasGainMap = false
-  private var decodedForHdrQuality = false
-  private var decodingForHdrQuality = false
   private var hdrRequested = true
 
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -114,19 +112,13 @@ class UltraHdrViewerActivity : Activity() {
   }
 
   private fun loadImage(preferHdrQuality: Boolean) {
-    if (preferHdrQuality) {
-      decodingForHdrQuality = true
-    }
-
     executor.execute {
-      val decoded = runCatching {
+      val decodeResult = runCatching {
         decodeImage(applicationContext, request, cancellationSignal, preferHdrQuality)
-      }.getOrNull()
+      }
 
       mainHandler.post {
-        if (preferHdrQuality) {
-          decodingForHdrQuality = false
-        }
+        val decoded = decodeResult.getOrNull()
 
         if (destroyed) {
           decoded?.bitmap?.let { bitmap ->
@@ -136,7 +128,8 @@ class UltraHdrViewerActivity : Activity() {
         }
 
         if (decoded == null) {
-          applyHdrState()
+          Log.e(TAG, "[UltraHDRViewer] Failed to decode image", decodeResult.exceptionOrNull())
+          finishViewerWithError(UltraHdrViewerContract.ERROR_DECODE_FAILED)
           return@post
         }
 
@@ -146,7 +139,6 @@ class UltraHdrViewerActivity : Activity() {
         }
         imageView.setBitmap(decoded.bitmap)
         decodedHasGainMap = decoded.hasGainMap
-        decodedForHdrQuality = preferHdrQuality
         applyHdrState()
       }
     }
@@ -154,11 +146,6 @@ class UltraHdrViewerActivity : Activity() {
 
   private fun applyHdrState() {
     if (destroyed) {
-      return
-    }
-
-    if (hdrRequested && !decodedForHdrQuality && !decodingForHdrQuality) {
-      loadImage(preferHdrQuality = true)
       return
     }
 
@@ -216,6 +203,19 @@ class UltraHdrViewerActivity : Activity() {
     setResult(
       RESULT_OK,
       Intent().putExtra(UltraHdrViewerContract.EXTRA_SHOULD_POP_PARENT, shouldPopParent),
+    )
+    finish()
+    overridePendingTransition(0, 0)
+  }
+
+  private fun finishViewerWithError(errorCode: String) {
+    if (destroyed) {
+      return
+    }
+
+    setResult(
+      RESULT_CANCELED,
+      Intent().putExtra(UltraHdrViewerContract.EXTRA_ERROR_CODE, errorCode),
     )
     finish()
     overridePendingTransition(0, 0)
