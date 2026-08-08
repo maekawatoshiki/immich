@@ -40,8 +40,12 @@ class AssetPreloader {
   }
 
   ImageStream _resolveImage(BaseAsset asset, Size size, Size? thumbnailSize) {
-    return getFullImageProvider(asset, size: size, remoteThumbnailSize: thumbnailSize).resolve(ImageConfiguration.empty)
-      ..addListener(_dummyListener);
+    return getFullImageProvider(
+      asset,
+      size: size,
+      remoteThumbnailSize: thumbnailSize,
+      preferLocal: asset.hasLocal && (!asset.isEdited || !asset.hasRemote),
+    ).resolve(ImageConfiguration.empty)..addListener(_dummyListener);
   }
 
   void dispose() {

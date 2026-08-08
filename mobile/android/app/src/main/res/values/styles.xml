@@ -30,9 +30,6 @@
     <item name="android:activityOpenExitAnimation">@anim/immich_no_animation</item>
     <item name="android:activityCloseEnterAnimation">@anim/immich_no_animation</item>
     <item name="android:activityCloseExitAnimation">@anim/immich_no_animation</item>
-    <item name="android:taskOpenEnterAnimation">@anim/immich_no_animation</item>
-    <item name="android:taskOpenExitAnimation">@anim/immich_no_animation</item>
-    <item name="android:taskCloseEnterAnimation">@anim/immich_no_animation</item>
-    <item name="android:taskCloseExitAnimation">@anim/immich_no_animation</item>
   </style>
+
 </resources>
