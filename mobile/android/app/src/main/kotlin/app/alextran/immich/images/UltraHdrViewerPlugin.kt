@@ -7,114 +7,61 @@ import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
-import io.flutter.plugin.common.PluginRegistry
 
-class UltraHdrViewerPlugin :
-  FlutterPlugin,
-  ActivityAware,
-  MethodChannel.MethodCallHandler,
-  PluginRegistry.ActivityResultListener {
-  private var methodChannel: MethodChannel? = null
-  private var activityBinding: ActivityPluginBinding? = null
-  private var pendingResult: MethodChannel.Result? = null
+class UltraHdrViewerPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHandler {
+  private var channel: MethodChannel? = null
+  private var activity: Activity? = null
 
   override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
-    methodChannel = MethodChannel(binding.binaryMessenger, UltraHdrViewerContract.CHANNEL)
-    methodChannel?.setMethodCallHandler(this)
-  }
-
-  override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
-    methodChannel?.setMethodCallHandler(null)
-    methodChannel = null
-  }
-
-  override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
-    when (call.method) {
-      UltraHdrViewerContract.METHOD_OPEN -> openViewer(call.arguments, result)
-      else -> result.notImplemented()
+    channel = MethodChannel(binding.binaryMessenger, UltraHdrViewerContract.CHANNEL).also {
+      it.setMethodCallHandler(this)
     }
   }
 
-  private fun openViewer(arguments: Any?, result: MethodChannel.Result) {
-    val activity = activityBinding?.activity
-    if (activity == null) {
+  override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+    channel?.setMethodCallHandler(null)
+    channel = null
+  }
+
+  override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
+    if (call.method != UltraHdrViewerContract.METHOD_OPEN) {
+      result.notImplemented()
+      return
+    }
+
+    val foregroundActivity = activity
+    if (foregroundActivity == null) {
       result.error("NO_ACTIVITY", "No foreground activity available", null)
       return
     }
 
-    if (pendingResult != null) {
-      result.error("BUSY", "Ultra HDR viewer is already open", null)
-      return
-    }
-
-    val request = parseRequest(arguments)
+    val request = parseRequest(call.arguments)
     if (request.localId == null && request.remoteUrl == null) {
       result.error("INVALID_ARGS", "Either localId or remoteUrl must be provided", null)
       return
     }
 
-    pendingResult = result
-    val intent = Intent(activity, UltraHdrViewerActivity::class.java).apply {
+    val intent = Intent(foregroundActivity, UltraHdrViewerActivity::class.java).apply {
       UltraHdrViewerContract.writeRequest(this, request)
       addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
     }
-
-    activity.startActivityForResult(intent, UltraHdrViewerContract.REQUEST_CODE)
-    activity.overridePendingTransition(0, 0)
+    foregroundActivity.startActivity(intent)
+    result.success(null)
   }
 
   override fun onAttachedToActivity(binding: ActivityPluginBinding) {
-    activityBinding = binding
-    binding.addActivityResultListener(this)
+    activity = binding.activity
   }
 
   override fun onDetachedFromActivityForConfigChanges() {
-    detachFromActivity()
+    activity = null
   }
 
   override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
-    onAttachedToActivity(binding)
+    activity = binding.activity
   }
 
   override fun onDetachedFromActivity() {
-    detachFromActivity()
-  }
-
-  private fun detachFromActivity() {
-    activityBinding?.removeActivityResultListener(this)
-    activityBinding = null
-
-    pendingResult?.error("CANCELLED", "Ultra HDR viewer was cancelled", null)
-    pendingResult = null
-  }
-
-  override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
-    if (requestCode != UltraHdrViewerContract.REQUEST_CODE) {
-      return false
-    }
-
-    val result = pendingResult ?: return false
-    pendingResult = null
-
-    val errorCode = data?.getStringExtra(UltraHdrViewerContract.EXTRA_ERROR_CODE)
-    if (errorCode != null) {
-      result.error(errorCode, "Unable to decode image in the native HDR viewer", null)
-      return true
-    }
-
-    val shouldPopParent =
-      if (resultCode == Activity.RESULT_OK) {
-        data?.getBooleanExtra(UltraHdrViewerContract.EXTRA_SHOULD_POP_PARENT, false) ?: false
-      } else {
-        false
-      }
-
-    result.success(
-      mapOf(
-        UltraHdrViewerContract.EXTRA_SHOULD_POP_PARENT to shouldPopParent,
-      ),
-    )
-
-    return true
+    activity = null
   }
 }

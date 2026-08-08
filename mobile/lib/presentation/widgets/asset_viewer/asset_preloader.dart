@@ -39,7 +39,11 @@ class AssetPreloader {
   }
 
   ImageStream _resolveImage(BaseAsset asset, Size size) {
-    return getFullImageProvider(asset, size: size).resolve(ImageConfiguration.empty)..addListener(_dummyListener);
+    return getFullImageProvider(
+      asset,
+      size: size,
+      preferLocal: asset.hasLocal && (!asset.isEdited || !asset.hasRemote),
+    ).resolve(ImageConfiguration.empty)..addListener(_dummyListener);
   }
 
   void dispose() {

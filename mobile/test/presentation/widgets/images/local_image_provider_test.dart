@@ -3,8 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:immich_mobile/domain/models/asset/base_asset.model.dart';
 import 'package:immich_mobile/presentation/widgets/images/image_provider.dart';
 import 'package:immich_mobile/presentation/widgets/images/local_image_provider.dart';
+import 'package:immich_mobile/presentation/widgets/images/remote_image_provider.dart';
 
 import '../../../unit/factories/local_asset_factory.dart';
+import '../../../unit/factories/remote_asset_factory.dart';
 
 class _StubCompleter extends ImageStreamCompleter {}
 
@@ -109,6 +111,49 @@ void main() {
       final provider = getThumbnailImageProvider(asset)! as LocalThumbProvider;
 
       expect(provider.checksum, 'abc');
+    });
+
+    test('uses the local original for an unedited merged asset when requested', () {
+      final asset = RemoteAssetFactory.create(localId: 'local-asset');
+
+      final provider = getFullImageProvider(asset, preferLocal: true);
+
+      expect(provider, isA<LocalFullImageProvider>());
+      expect((provider as LocalFullImageProvider).id, 'local-asset');
+    });
+
+    test('does not use the local original for an edited asset', () {
+      final asset = RemoteAssetFactory.create(localId: 'local-asset').copyWith(isEdited: true);
+
+      final provider = getFullImageProvider(asset, preferLocal: true);
+
+      expect(provider, isA<RemoteFullImageProvider>());
+    });
+
+    test('uses the local original for an edited local-only asset', () {
+      final asset = LocalAssetFactory.create().copyWith(isEdited: true);
+
+      final provider = getFullImageProvider(asset, preferLocal: true);
+
+      expect(provider, isA<LocalFullImageProvider>());
+      expect((provider as LocalFullImageProvider).id, asset.id);
+    });
+
+    test('uses the remote original when no local asset exists', () {
+      final asset = RemoteAssetFactory.create();
+
+      final provider = getFullImageProvider(asset, preferLocal: true);
+
+      expect(provider, isA<RemoteFullImageProvider>());
+    });
+
+    test('keeps an explicit local file path ahead of local preference', () {
+      final asset = RemoteAssetFactory.create(localId: 'local-asset');
+
+      final provider = getFullImageProvider(asset, localFilePath: '/tmp/asset.jpg', preferLocal: true);
+
+      expect(provider, isA<FileImage>());
+      expect((provider as FileImage).file.path, '/tmp/asset.jpg');
     });
   });
 
