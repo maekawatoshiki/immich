@@ -1,6 +1,5 @@
 package app.alextran.immich
 
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -18,7 +17,6 @@ import app.alextran.immich.images.LocalImageApi
 import app.alextran.immich.images.LocalImagesImpl
 import app.alextran.immich.images.RemoteImageApi
 import app.alextran.immich.images.RemoteImagesImpl
-import app.alextran.immich.images.UltraHdrImageViewFactory
 import app.alextran.immich.images.UltraHdrViewerPlugin
 import app.alextran.immich.permission.PermissionApi
 import app.alextran.immich.permission.PermissionApiImpl
@@ -61,17 +59,6 @@ class MainActivity : FlutterFragmentActivity() {
       PermissionApi.setUp(messenger, permissionApiImpl)
       LocalImageApi.setUp(messenger, LocalImagesImpl(ctx))
       RemoteImageApi.setUp(messenger, RemoteImagesImpl(ctx))
-      if (ctx is Activity) {
-        try {
-          flutterEngine
-            .platformViewsController
-            .registry
-            .registerViewFactory("immich/ultra_hdr_image", UltraHdrImageViewFactory(ctx, messenger))
-        } catch (_: IllegalStateException) {
-          // The factory may already be registered on this engine.
-        }
-      }
-
       BackgroundWorkerFgHostApi.setUp(messenger, BackgroundWorkerApiImpl(ctx))
       ConnectivityApi.setUp(messenger, ConnectivityApiImpl(ctx))
 

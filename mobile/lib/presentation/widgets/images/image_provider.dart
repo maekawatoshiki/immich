@@ -162,12 +162,13 @@ ImageProvider getFullImageProvider(
   bool edited = true,
   String? localFilePath,
   Size? remoteThumbnailSize,
+  bool preferLocal = false,
 }) {
   // Create new provider and cache it
   final ImageProvider provider;
   if (localFilePath != null) {
     provider = FileImage(File(localFilePath));
-  } else if (_shouldUseLocalAsset(asset)) {
+  } else if (_shouldUseLocalAsset(asset, preferLocal: preferLocal)) {
     final id = asset is LocalAsset ? asset.id : (asset as RemoteAsset).localId!;
     provider = LocalFullImageProvider(
       id: id,
@@ -223,7 +224,7 @@ ImageProvider? getThumbnailImageProvider(
       : null;
 }
 
-bool _shouldUseLocalAsset(BaseAsset asset) =>
+bool _shouldUseLocalAsset(BaseAsset asset, {bool preferLocal = false}) =>
     asset.hasLocal &&
-    (!asset.hasRemote || !SettingsRepository.instance.appConfig.image.preferRemote) &&
-    !asset.isEdited;
+    ((preferLocal && (!asset.isEdited || !asset.hasRemote)) ||
+        (!asset.isEdited && (!asset.hasRemote || !SettingsRepository.instance.appConfig.image.preferRemote)));

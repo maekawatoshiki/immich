@@ -232,8 +232,8 @@ internal object ImageFetcherManager {
     fetch(
       url,
       signal,
-      onSuccess = {
-        buffer = it
+      onSuccess = { nativeBuffer, _ ->
+        buffer = nativeBuffer
         latch.countDown()
       },
       onFailure = {
