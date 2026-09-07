@@ -14,6 +14,7 @@ import 'package:immich_mobile/extensions/scroll_extensions.dart';
 import 'package:immich_mobile/presentation/widgets/asset_viewer/asset_details.widget.dart';
 import 'package:immich_mobile/presentation/widgets/asset_viewer/asset_stack.provider.dart';
 import 'package:immich_mobile/presentation/widgets/asset_viewer/asset_stack.widget.dart';
+import 'package:immich_mobile/presentation/widgets/asset_viewer/auto_hdr_image.widget.dart';
 import 'package:immich_mobile/presentation/widgets/asset_viewer/ocr_overlay.widget.dart';
 import 'package:immich_mobile/presentation/widgets/asset_viewer/ultra_hdr_viewer_launcher.dart';
 import 'package:immich_mobile/presentation/widgets/asset_viewer/video_viewer.widget.dart';
@@ -33,8 +34,15 @@ class AssetPage extends ConsumerStatefulWidget {
   final int index;
   final int heroOffset;
   final void Function(int direction)? onTapNavigate;
+  final bool useAutoHdr;
 
-  const AssetPage({super.key, required this.index, required this.heroOffset, this.onTapNavigate});
+  const AssetPage({
+    super.key,
+    required this.index,
+    required this.heroOffset,
+    this.onTapNavigate,
+    this.useAutoHdr = false,
+  });
 
   @override
   ConsumerState createState() => _AssetPageState();
@@ -60,6 +68,7 @@ class _AssetPageState extends ConsumerState<AssetPage> {
   Drag? _drag;
 
   BaseAsset? _asset;
+  Object? _failedNativeImage;
 
   @override
   void initState() {
@@ -353,6 +362,44 @@ class _AssetPageState extends ConsumerState<AssetPage> {
     required String? localFilePath,
   }) {
     final size = context.sizeData;
+    final nativeIdentity = autoHdrImageIdentity(asset);
+    if (widget.useAutoHdr &&
+        canUseAutoHdrImage(asset) &&
+        !isPlayingMotionVideo &&
+        localFilePath == null &&
+        nativeIdentity != _failedNativeImage) {
+      return AutoHdrImage(
+        key: ValueKey(nativeIdentity),
+        asset: asset,
+        viewport: size,
+        isCurrent: isCurrent,
+        onControllerCreated: _onPageBuild,
+        onError: () {
+          if (mounted) {
+            setState(() => _failedNativeImage = nativeIdentity);
+          }
+        },
+        builder: (controller, image, childSize) => PhotoView.customChild(
+          key: Key(asset.heroTag),
+          controller: controller,
+          childSize: childSize,
+          heroAttributes: heroAttributes,
+          // Select PhotoView's transform path, not per-gesture native view resizing.
+          filterQuality: FilterQuality.none,
+          tightMode: true,
+          enablePanAlways: true,
+          disableScaleGestures: _showingDetails,
+          scaleStateChangedCallback: _onScaleStateChanged,
+          onDragStart: _onDragStart,
+          onDragUpdate: _onDragUpdate,
+          onDragEnd: _onDragEnd,
+          onDragCancel: _onDragCancel,
+          onTapUp: _onTapUp,
+          onLongPressStart: (_, __, ___) => _onLongPress(asset),
+          child: image,
+        ),
+      );
+    }
     final imageProvider = getFullImageProvider(
       asset,
       size: size,

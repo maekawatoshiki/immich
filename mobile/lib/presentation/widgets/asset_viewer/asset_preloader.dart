@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:immich_mobile/domain/models/asset/base_asset.model.dart';
 import 'package:immich_mobile/domain/services/timeline.service.dart';
+import 'package:immich_mobile/presentation/widgets/asset_viewer/auto_hdr_image.widget.dart';
 import 'package:immich_mobile/presentation/widgets/images/image_provider.dart';
 
 class AssetPreloader {
@@ -10,6 +11,7 @@ class AssetPreloader {
 
   final TimelineService timelineService;
   final bool Function() mounted;
+  bool nativeImages = false;
 
   Timer? _timer;
   ImageStream? _prevStream;
@@ -39,6 +41,12 @@ class AssetPreloader {
   }
 
   ImageStream _resolveImage(BaseAsset asset, Size size) {
+    if (nativeImages && canUseAutoHdrImage(asset)) {
+      final thumbnail = getThumbnailImageProvider(asset);
+      if (thumbnail != null) {
+        return thumbnail.resolve(ImageConfiguration.empty)..addListener(_dummyListener);
+      }
+    }
     return getFullImageProvider(
       asset,
       size: size,
