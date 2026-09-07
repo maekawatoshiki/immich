@@ -116,18 +116,18 @@ fun decodeWithImageDecoder(
   return ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
     decoder.allocator = ImageDecoder.ALLOCATOR_HARDWARE
 
+    // Use the same HDR color space for full-screen and inline rendering.
+    runCatching {
+      decoder.setTargetColorSpace(ColorSpace.get(ColorSpace.Named.EXTENDED_SRGB))
+    }
     if (preferHdrQuality) {
-      runCatching {
-        decoder.setTargetColorSpace(ColorSpace.get(ColorSpace.Named.EXTENDED_SRGB))
-      }
       return@decodeBitmap
     }
 
     if (target.width > 0 && target.height > 0) {
-      // The viewer uses contain fitting. Sampling by the larger dimension
-      // keeps enough pixels for the viewport without decoding the full photo.
-      val sample = max(1, max(info.size.width / target.width, info.size.height / target.height))
-      decoder.setTargetSampleSize(sample)
+      // Keep the gain map, but only decode the pixels needed by this viewport.
+      val ratio = min(1.0, min(target.width.toDouble() / info.size.width, target.height.toDouble() / info.size.height))
+      decoder.setTargetSize(max(1, (info.size.width * ratio).toInt()), max(1, (info.size.height * ratio).toInt()))
     }
   }
 }

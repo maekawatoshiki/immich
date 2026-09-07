@@ -81,7 +81,12 @@ class SnapScrollPhysics extends ScrollPhysics {
       }
     }
 
-    return ScrollSpringSimulation(spring, position.pixels, target(position, velocity, snapOffset), velocity);
+    final destination = target(position, velocity, snapOffset);
+    final tolerance = toleranceFor(position);
+    if ((position.pixels - destination).abs() < tolerance.distance && velocity.abs() < tolerance.velocity) {
+      return null;
+    }
+    return ScrollSpringSimulation(spring, position.pixels, destination, velocity);
   }
 
   @override
