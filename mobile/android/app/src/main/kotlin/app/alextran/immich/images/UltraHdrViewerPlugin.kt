@@ -1,7 +1,6 @@
 package app.alextran.immich.images
 
 import android.app.Activity
-import android.content.Intent
 import android.os.Build
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
@@ -18,7 +17,7 @@ class UltraHdrViewerPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodC
     inlineImages = InlineHdrImageViewFactory(binding.binaryMessenger) { activity }.also {
       binding.platformViewRegistry.registerViewFactory("immich/inline_hdr_image", it)
     }
-    channel = MethodChannel(binding.binaryMessenger, UltraHdrViewerContract.CHANNEL).also {
+    channel = MethodChannel(binding.binaryMessenger, "immich/ultra_hdr_viewer").also {
       it.setMethodCallHandler(this)
     }
   }
@@ -35,29 +34,7 @@ class UltraHdrViewerPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodC
       result.success(Build.VERSION.SDK_INT >= 34 && activity?.display?.isHdr == true)
       return
     }
-    if (call.method != UltraHdrViewerContract.METHOD_OPEN) {
-      result.notImplemented()
-      return
-    }
-
-    val foregroundActivity = activity
-    if (foregroundActivity == null) {
-      result.error("NO_ACTIVITY", "No foreground activity available", null)
-      return
-    }
-
-    val request = parseRequest(call.arguments)
-    if (request.localId == null && request.remoteUrl == null) {
-      result.error("INVALID_ARGS", "Either localId or remoteUrl must be provided", null)
-      return
-    }
-
-    val intent = Intent(foregroundActivity, UltraHdrViewerActivity::class.java).apply {
-      UltraHdrViewerContract.writeRequest(this, request)
-      addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
-    }
-    foregroundActivity.startActivity(intent)
-    result.success(null)
+    result.notImplemented()
   }
 
   override fun onAttachedToActivity(binding: ActivityPluginBinding) {

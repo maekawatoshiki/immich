@@ -137,11 +137,6 @@
       </intent-filter>
     </activity>
 
-    <activity
-      android:name=".images.UltraHdrViewerActivity"
-      android:exported="false"
-      android:hardwareAccelerated="true"
-      android:theme="@style/Theme.Immich.UltraHdrViewer" />
 
     <activity
       android:name="com.linusu.flutter_web_auth_2.CallbackActivity"
