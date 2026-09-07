@@ -21,15 +21,4 @@
     <item name="android:windowBackground">?android:colorBackground</item>
   </style>
 
-  <style name="Theme.Immich.UltraHdrViewer" parent="Theme.Material3.DayNight.NoActionBar">
-    <item name="android:windowAnimationStyle">@style/AnimationImmichNoAnimation</item>
-  </style>
-
-  <style name="AnimationImmichNoAnimation" parent="@android:style/Animation">
-    <item name="android:activityOpenEnterAnimation">@anim/immich_no_animation</item>
-    <item name="android:activityOpenExitAnimation">@anim/immich_no_animation</item>
-    <item name="android:activityCloseEnterAnimation">@anim/immich_no_animation</item>
-    <item name="android:activityCloseExitAnimation">@anim/immich_no_animation</item>
-  </style>
-
 </resources>

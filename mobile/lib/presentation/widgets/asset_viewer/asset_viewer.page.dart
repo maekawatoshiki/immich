@@ -142,7 +142,7 @@ class _AssetViewerState extends ConsumerState<AssetViewer> {
       _checkingAutoHdr = false;
     });
     if (wasChecking) {
-      _preloader.preload(_currentPage, context.sizeData);
+      _preloader.preload(_currentPage, context.sizeData, thumbnailSize: ref.read(assetViewerProvider).thumbnailSize);
     }
   }
 

@@ -16,7 +16,6 @@ import 'package:immich_mobile/presentation/widgets/asset_viewer/asset_stack.prov
 import 'package:immich_mobile/presentation/widgets/asset_viewer/asset_stack.widget.dart';
 import 'package:immich_mobile/presentation/widgets/asset_viewer/auto_hdr_image.widget.dart';
 import 'package:immich_mobile/presentation/widgets/asset_viewer/ocr_overlay.widget.dart';
-import 'package:immich_mobile/presentation/widgets/asset_viewer/ultra_hdr_viewer_launcher.dart';
 import 'package:immich_mobile/presentation/widgets/asset_viewer/video_viewer.widget.dart';
 import 'package:immich_mobile/presentation/widgets/images/image_provider.dart';
 import 'package:immich_mobile/presentation/widgets/images/progressive_image.widget.dart';
@@ -301,11 +300,6 @@ class _AssetPageState extends ConsumerState<AssetPage> {
   }
 
   void _onLongPress(BaseAsset asset) {
-    if (_canUseUltraHdrPath(asset)) {
-      unawaited(launchNativeUltraHdrViewer(context: context, asset: asset));
-      return;
-    }
-
     if (asset.isMotionPhoto) {
       ref.read(isPlayingMotionVideoProvider.notifier).playing = true;
     }
@@ -370,8 +364,6 @@ class _AssetPageState extends ConsumerState<AssetPage> {
     _listenForScaleBoundaries(controller);
   }
 
-  bool _canUseUltraHdrPath(BaseAsset asset) => canUseNativeUltraHdrViewer(asset);
-
   Widget _buildPhotoView({
     required BaseAsset asset,
     required PhotoViewHeroAttributes? heroAttributes,
@@ -414,7 +406,7 @@ class _AssetPageState extends ConsumerState<AssetPage> {
           onDragEnd: _onDragEnd,
           onDragCancel: _onDragCancel,
           onTapUp: _onTapUp,
-          onLongPressStart: (_, __, ___) => _onLongPress(asset),
+          onLongPressStart: asset.isMotionPhoto ? (_, _, _) => _onLongPress(asset) : null,
           child: image,
         ),
       );
@@ -449,9 +441,7 @@ class _AssetPageState extends ConsumerState<AssetPage> {
           onDragEnd: _onDragEnd,
           onDragCancel: _onDragCancel,
           onTapUp: _onTapUp,
-          onLongPressStart: _canUseUltraHdrPath(asset) || asset.isMotionPhoto
-              ? (_, _, _) => _onLongPress(asset)
-              : null,
+          onLongPressStart: asset.isMotionPhoto ? (_, _, _) => _onLongPress(asset) : null,
           errorBuilder: (_, _, _) => SizedBox(
             width: size.width,
             height: size.height,
