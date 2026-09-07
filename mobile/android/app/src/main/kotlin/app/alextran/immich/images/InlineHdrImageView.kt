@@ -171,7 +171,7 @@ class InlineHdrImageView(
       var decoded: DecodedImage? = null
       val outcome = runCatching {
         cancellation.throwIfCanceled()
-        decoded = decodeImage(image.context.applicationContext, request, cancellation, preferHdrQuality = false)
+        decoded = decodeImage(image.context.applicationContext, request, cancellation)
         cancellation.throwIfCanceled()
       }
       main.post {

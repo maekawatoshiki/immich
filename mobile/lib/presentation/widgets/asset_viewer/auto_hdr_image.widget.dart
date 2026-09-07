@@ -6,11 +6,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:immich_mobile/domain/models/asset/base_asset.model.dart';
-import 'package:immich_mobile/presentation/widgets/asset_viewer/ultra_hdr_viewer_launcher.dart';
 import 'package:immich_mobile/presentation/widgets/images/thumbnail.widget.dart';
+import 'package:immich_mobile/services/api.service.dart';
+import 'package:immich_mobile/utils/image_url_builder.dart';
 import 'package:immich_mobile/widgets/photo_view/photo_view.dart';
 
 const autoHdrEnabled = bool.fromEnvironment('IMMICH_AUTO_HDR');
+
+Map<String, Object?> nativeImageSource(BaseAsset asset) {
+  final useLocal = asset.localId != null && (!asset.isEdited || asset.remoteId == null);
+  return {
+    'localId': useLocal ? asset.localId : null,
+    'remoteUrl': useLocal || asset.remoteId == null
+        ? null
+        : getOriginalUrlForRemoteId(asset.remoteId!, edited: asset.isEdited),
+    'headers': useLocal ? <String, String>{} : ApiService.getRequestHeaders(),
+  };
+}
 
 Future<bool> checkAutoHdrSupport({bool enabled = autoHdrEnabled}) async {
   if (!enabled || kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
