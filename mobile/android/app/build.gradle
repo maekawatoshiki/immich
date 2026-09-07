@@ -8,6 +8,9 @@ plugins {
 }
 
 def keystoreProperties = new Properties()
+def autoHdrEnabled = (project.findProperty('dart-defines') ?: '').split(',').any {
+  new String(it.decodeBase64(), 'UTF-8') == 'IMMICH_AUTO_HDR=true'
+}
 def keystorePropertiesFile = rootProject.file('key.properties')
 if (keystorePropertiesFile.exists()) {
   keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
@@ -37,6 +40,7 @@ android {
   }
 
   defaultConfig {
+    manifestPlaceholders += [immichAutoHdr: autoHdrEnabled.toString()]
     applicationId "app.uint.immich"
     minSdk = 26
     targetSdk = flutter.targetSdkVersion

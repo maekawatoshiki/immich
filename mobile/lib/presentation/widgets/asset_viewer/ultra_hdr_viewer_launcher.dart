@@ -9,6 +9,17 @@ import 'package:immich_mobile/utils/image_url_builder.dart';
 
 const _ultraHdrViewerChannel = MethodChannel('immich/ultra_hdr_viewer');
 
+Map<String, Object?> nativeImageSource(BaseAsset asset) {
+  final useLocal = asset.localId != null && (!asset.isEdited || asset.remoteId == null);
+  return {
+    'localId': useLocal ? asset.localId : null,
+    'remoteUrl': useLocal || asset.remoteId == null
+        ? null
+        : getOriginalUrlForRemoteId(asset.remoteId!, edited: asset.isEdited),
+    'headers': useLocal ? <String, String>{} : ApiService.getRequestHeaders(),
+  };
+}
+
 bool canUseNativeUltraHdrViewer(BaseAsset asset) {
   return Platform.isAndroid &&
       asset.isImage &&
@@ -23,15 +34,10 @@ Future<void> launchNativeUltraHdrViewer({required BuildContext context, required
 
   final size = MediaQuery.sizeOf(context);
   final pixelRatio = MediaQuery.devicePixelRatioOf(context);
-  final useLocalAsset = asset.localId != null && (!asset.isEdited || asset.remoteId == null);
-  final localId = useLocalAsset ? asset.localId : null;
-  final remoteId = localId == null ? asset.remoteId : null;
 
   try {
     await _ultraHdrViewerChannel.invokeMethod<void>('open', {
-      'localId': localId,
-      'remoteUrl': remoteId == null ? null : getOriginalUrlForRemoteId(remoteId, edited: asset.isEdited),
-      'headers': remoteId == null ? <String, String>{} : ApiService.getRequestHeaders(),
+      ...nativeImageSource(asset),
       'width': (size.width * pixelRatio).round(),
       'height': (size.height * pixelRatio).round(),
     });
