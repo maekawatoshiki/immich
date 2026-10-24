@@ -92,6 +92,9 @@ void main() {
   });
 
   testWidgets('keeps the native view during zoom and loads higher resolution after release', (tester) async {
+    tester.view.physicalSize = const Size(1000, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
     final loads = <Map<Object?, Object?>>[];
     final nativeIds = <int>[];
@@ -134,6 +137,7 @@ void main() {
               builder: (controller, image, size) => PhotoView.customChild(
                 controller: controller,
                 childSize: size,
+                originalScale: asset.width! / size.width,
                 filterQuality: FilterQuality.none,
                 child: KeyedSubtree(key: ValueKey(nativeGeneration), child: image),
               ),
@@ -179,6 +183,20 @@ void main() {
     await tester.pump(const Duration(milliseconds: 250));
     expect(loads.last['width'], 800);
     expect(nativeIds, hasLength(2));
+    for (final scale in [1.0, 8 / 3, 10.0, 1.0]) {
+      await tester.tap(find.byType(AutoHdrImage));
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.byType(AutoHdrImage));
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(controller.scale, closeTo(scale, 0.00001));
+      expect(nativeIds, hasLength(2));
+      expect(tester.getSize(find.byType(PlatformViewLink)), viewSize);
+      if (scale == 10) {
+        expect(loads.last['width'], 4000);
+        expect(loads.last['height'], 3000);
+      }
+    }
     current = false;
     await tester.pumpWidget(build());
     await tester.pump(const Duration(milliseconds: 250));

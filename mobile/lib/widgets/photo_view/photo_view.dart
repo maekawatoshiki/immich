@@ -250,6 +250,7 @@ class PhotoView extends StatefulWidget {
     this.maxScale,
     this.minScale,
     this.initialScale,
+    this.originalScale = 1.0,
     this.basePosition,
     this.scaleStateCycle,
     this.onTapUp,
@@ -293,6 +294,7 @@ class PhotoView extends StatefulWidget {
     this.maxScale,
     this.minScale,
     this.initialScale,
+    this.originalScale = 1.0,
     this.basePosition,
     this.scaleStateCycle,
     this.onTapUp,
@@ -386,6 +388,9 @@ class PhotoView extends StatefulWidget {
   /// is proportional to the original image size. Can be either a double (absolute value) or a
   /// [PhotoViewComputedScale], that can be multiplied by a double
   final dynamic initialScale;
+
+  /// Scale used by the original-size step of the double-tap cycle.
+  final double originalScale;
 
   /// A way to control PhotoView transformation factors externally and listen to its updates
   final PhotoViewControllerBase? controller;
@@ -562,6 +567,7 @@ class _PhotoViewState extends State<PhotoView> with AutomaticKeepAliveClientMixi
                 maxScale: widget.maxScale,
                 minScale: widget.minScale,
                 initialScale: widget.initialScale,
+                originalScale: widget.originalScale,
                 basePosition: widget.basePosition,
                 scaleStateCycle: widget.scaleStateCycle,
                 onTapUp: widget.onTapUp,
@@ -595,6 +601,7 @@ class _PhotoViewState extends State<PhotoView> with AutomaticKeepAliveClientMixi
                 maxScale: widget.maxScale,
                 minScale: widget.minScale,
                 initialScale: widget.initialScale,
+                originalScale: widget.originalScale,
                 basePosition: widget.basePosition,
                 scaleStateCycle: widget.scaleStateCycle,
                 onTapUp: widget.onTapUp,

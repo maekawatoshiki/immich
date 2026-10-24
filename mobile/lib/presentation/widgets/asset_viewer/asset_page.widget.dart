@@ -328,8 +328,10 @@ class _AssetPageState extends ConsumerState<AssetPage> {
   }
 
   void _onScaleStateChanged(PhotoViewScaleState scaleState) {
+    final boundaries = _viewController?.scaleBoundaries;
     _applyZoomedState(switch (scaleState) {
       PhotoViewScaleState.zoomedIn || PhotoViewScaleState.covering => true,
+      PhotoViewScaleState.originalSize => boundaries != null && boundaries.originalScale > boundaries.initialScale,
       _ => false,
     }, hideControls: scaleState != PhotoViewScaleState.initial);
   }
@@ -403,6 +405,7 @@ class _AssetPageState extends ConsumerState<AssetPage> {
             key: Key(asset.heroTag),
             controller: controller,
             childSize: childSize,
+            originalScale: asset.width! / childSize.width,
             heroAttributes: heroAttributes,
             // Select PhotoView's transform path, not per-gesture native view resizing.
             filterQuality: FilterQuality.none,
