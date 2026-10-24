@@ -28,3 +28,7 @@ vite.config.js.timestamp-*
 .devcontainer/.env*
 *.tsbuildinfo
 *.tsbuildInfo
+
+tmp/
+mobile/android/.gradle-home/
+mobile/android/build/
