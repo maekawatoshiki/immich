@@ -20,6 +20,7 @@ class ImageWrapper extends StatefulWidget {
     required this.maxScale,
     required this.minScale,
     required this.initialScale,
+    required this.originalScale,
     required this.basePosition,
     required this.scaleStateCycle,
     required this.onTapUp,
@@ -53,6 +54,7 @@ class ImageWrapper extends StatefulWidget {
   final dynamic maxScale;
   final dynamic minScale;
   final dynamic initialScale;
+  final double originalScale;
   final PhotoViewControllerBase controller;
   final PhotoViewScaleStateController scaleStateController;
   final Alignment? basePosition;
@@ -116,6 +118,7 @@ class _ImageWrapperState extends State<ImageWrapper> {
       widget.initialScale ?? PhotoViewComputedScale.contained,
       widget.outerSize,
       _imageSize!,
+      originalScale: widget.originalScale,
     );
   }
 
@@ -194,6 +197,7 @@ class _ImageWrapperState extends State<ImageWrapper> {
         maxScale: widget.maxScale,
         minScale: widget.minScale,
         initialScale: widget.initialScale,
+        originalScale: widget.originalScale,
         basePosition: widget.basePosition,
         scaleStateCycle: widget.scaleStateCycle,
         onTapUp: widget.onTapUp,
@@ -274,6 +278,7 @@ class CustomChildWrapper extends StatelessWidget {
     required this.maxScale,
     required this.minScale,
     required this.initialScale,
+    required this.originalScale,
     required this.basePosition,
     required this.scaleStateCycle,
     this.onTapUp,
@@ -306,6 +311,7 @@ class CustomChildWrapper extends StatelessWidget {
   final dynamic maxScale;
   final dynamic minScale;
   final dynamic initialScale;
+  final double originalScale;
 
   final Alignment? basePosition;
   final ScaleStateCycle? scaleStateCycle;
@@ -333,6 +339,7 @@ class CustomChildWrapper extends StatelessWidget {
       initialScale ?? PhotoViewComputedScale.contained,
       outerSize,
       childSize ?? outerSize,
+      originalScale: originalScale,
     );
 
     return PhotoViewCore.customChild(

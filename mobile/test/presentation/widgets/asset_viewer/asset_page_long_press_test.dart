@@ -17,6 +17,7 @@ import 'package:immich_mobile/infrastructure/repositories/settings.repository.da
 import 'package:immich_mobile/infrastructure/repositories/store.repository.dart';
 import 'package:immich_mobile/presentation/widgets/asset_viewer/asset_page.widget.dart';
 import 'package:immich_mobile/presentation/widgets/asset_viewer/auto_hdr_image.widget.dart';
+import 'package:immich_mobile/providers/asset_viewer/asset_viewer.provider.dart';
 import 'package:immich_mobile/providers/asset_viewer/is_motion_video_playing.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/timeline.provider.dart';
 import 'package:immich_mobile/providers/user.provider.dart';
@@ -119,7 +120,12 @@ void main() {
                   localizationsDelegates: context.localizationDelegates,
                   supportedLocales: context.supportedLocales,
                   locale: context.locale,
-                  home: Material(child: AssetPage(index: 0, heroOffset: 0, useAutoHdr: useAutoHdr)),
+                  home: Material(
+                    child: PhotoViewGestureDetectorScope(
+                      axis: Axis.horizontal,
+                      child: AssetPage(index: 0, heroOffset: 0, useAutoHdr: useAutoHdr),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -147,6 +153,36 @@ void main() {
 
         expect(container.read(isPlayingMotionVideoProvider), motionPhoto);
         expect(viewerCalls, isEmpty);
+        if (useAutoHdr && !motionPhoto) {
+          await tester.pump(const Duration(milliseconds: 500));
+          final controller = photoView.controller!;
+          final originalScale = controller.scaleBoundaries!.originalScale;
+          var reachedOriginal = false;
+          for (var i = 0; i < 3; i++) {
+            await tester.tap(find.byType(PhotoView));
+            await tester.pump(const Duration(milliseconds: 50));
+            await tester.tap(find.byType(PhotoView));
+            await tester.pumpAndSettle();
+            final zoomed = controller.scale! > controller.initialScale!;
+            expect(container.read(assetViewerProvider).isZoomed, zoomed);
+            expect(container.read(assetViewerProvider).showingControls, !zoomed);
+            reachedOriginal |= (controller.scale! - originalScale).abs() < 0.00001;
+            if ((controller.scale! - originalScale).abs() < 0.00001 && zoomed) {
+              final position = controller.position;
+              final gesture = await tester.startGesture(tester.getCenter(find.byType(PhotoView)));
+              await gesture.moveBy(const Offset(-50, 0));
+              await tester.pump();
+              await gesture.moveBy(const Offset(-100, -20));
+              await tester.pump();
+              await gesture.up();
+              await tester.pumpAndSettle();
+              expect(controller.position, isNot(position));
+              expect(container.read(assetViewerProvider).isZoomed, isTrue);
+              expect(container.read(assetViewerProvider).showingDetails, isFalse);
+            }
+          }
+          expect(reachedOriginal, isTrue);
+        }
         await tester.pumpWidget(const SizedBox.shrink());
         debugDefaultTargetPlatformOverride = null;
       });

@@ -14,20 +14,28 @@ double getScaleForScaleState(PhotoViewScaleState scaleState, ScaleBoundaries sca
       _scaleForCovering(scaleBoundaries.outerSize, scaleBoundaries.childSize),
       scaleBoundaries,
     ),
-    PhotoViewScaleState.originalSize => _clampSize(1.0, scaleBoundaries),
+    PhotoViewScaleState.originalSize => _clampSize(scaleBoundaries.originalScale, scaleBoundaries),
   };
 }
 
 /// Internal class to wraps custom scale boundaries (min, max and initial)
 /// Also, stores values regarding the two sizes: the container and the child.
 class ScaleBoundaries {
-  const ScaleBoundaries(this._minScale, this._maxScale, this._initialScale, this.outerSize, this.childSize);
+  const ScaleBoundaries(
+    this._minScale,
+    this._maxScale,
+    this._initialScale,
+    this.outerSize,
+    this.childSize, {
+    this.originalScale = 1.0,
+  });
 
   final dynamic _minScale;
   final dynamic _maxScale;
   final dynamic _initialScale;
   final Size outerSize;
   final Size childSize;
+  final double originalScale;
 
   double get minScale {
     assert(_minScale is double || _minScale is PhotoViewComputedScale);
@@ -78,11 +86,17 @@ class ScaleBoundaries {
           _maxScale == other._maxScale &&
           _initialScale == other._initialScale &&
           outerSize == other.outerSize &&
-          childSize == other.childSize;
+          childSize == other.childSize &&
+          originalScale == other.originalScale;
 
   @override
   int get hashCode =>
-      _minScale.hashCode ^ _maxScale.hashCode ^ _initialScale.hashCode ^ outerSize.hashCode ^ childSize.hashCode;
+      _minScale.hashCode ^
+      _maxScale.hashCode ^
+      _initialScale.hashCode ^
+      outerSize.hashCode ^
+      childSize.hashCode ^
+      originalScale.hashCode;
 }
 
 double _scaleForContained(Size size, Size childSize) {
