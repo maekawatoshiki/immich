@@ -366,7 +366,7 @@ class _AssetPageState extends ConsumerState<AssetPage> {
 
   Widget _buildPhotoView({
     required BaseAsset asset,
-    required PhotoViewHeroAttributes? heroAttributes,
+    required PhotoViewHeroAttributes heroAttributes,
     required bool isCurrent,
     required bool isPlayingMotionVideo,
     required String? localFilePath,
@@ -379,35 +379,39 @@ class _AssetPageState extends ConsumerState<AssetPage> {
         !isPlayingMotionVideo &&
         localFilePath == null &&
         nativeIdentity != _failedNativeImage) {
-      return AutoHdrImage(
-        key: ValueKey(nativeIdentity),
-        asset: asset,
-        viewport: size,
-        isCurrent: isCurrent,
-        onControllerCreated: _onPageBuild,
-        onError: () {
-          if (mounted) {
-            setState(() => _failedNativeImage = nativeIdentity);
-          }
-        },
-        builder: (controller, image, childSize) => PhotoView.customChild(
-          key: Key(asset.heroTag),
-          controller: controller,
-          childSize: childSize,
-          heroAttributes: heroAttributes,
-          // Select PhotoView's transform path, not per-gesture native view resizing.
-          filterQuality: FilterQuality.none,
-          tightMode: true,
-          enablePanAlways: true,
-          disableScaleGestures: _showingDetails,
-          scaleStateChangedCallback: _onScaleStateChanged,
-          onDragStart: _onDragStart,
-          onDragUpdate: _onDragUpdate,
-          onDragEnd: _onDragEnd,
-          onDragCancel: _onDragCancel,
-          onTapUp: _onTapUp,
-          onLongPressStart: asset.isMotionPhoto ? (_, _, _) => _onLongPress(asset) : null,
-          child: image,
+      // Keep the Hero subtree stable when a preloaded page becomes current.
+      return HeroMode(
+        enabled: isCurrent,
+        child: AutoHdrImage(
+          key: ValueKey(nativeIdentity),
+          asset: asset,
+          viewport: size,
+          isCurrent: isCurrent,
+          onControllerCreated: _onPageBuild,
+          onError: () {
+            if (mounted) {
+              setState(() => _failedNativeImage = nativeIdentity);
+            }
+          },
+          builder: (controller, image, childSize) => PhotoView.customChild(
+            key: Key(asset.heroTag),
+            controller: controller,
+            childSize: childSize,
+            heroAttributes: heroAttributes,
+            // Select PhotoView's transform path, not per-gesture native view resizing.
+            filterQuality: FilterQuality.none,
+            tightMode: true,
+            enablePanAlways: true,
+            disableScaleGestures: _showingDetails,
+            scaleStateChangedCallback: _onScaleStateChanged,
+            onDragStart: _onDragStart,
+            onDragUpdate: _onDragUpdate,
+            onDragEnd: _onDragEnd,
+            onDragCancel: _onDragCancel,
+            onTapUp: _onTapUp,
+            onLongPressStart: asset.isMotionPhoto ? (_, _, _) => _onLongPress(asset) : null,
+            child: image,
+          ),
         ),
       );
     }
@@ -426,7 +430,7 @@ class _AssetPageState extends ConsumerState<AssetPage> {
           key: Key(asset.heroTag),
           index: widget.index,
           imageProvider: provider,
-          heroAttributes: heroAttributes,
+          heroAttributes: isCurrent ? heroAttributes : null,
           loadingBuilder: (context, progress, index) => const Center(child: ImmichLoadingIndicator()),
           gaplessPlayback: true,
           filterQuality: FilterQuality.high,
@@ -462,7 +466,7 @@ class _AssetPageState extends ConsumerState<AssetPage> {
       onDragCancel: _onDragCancel,
       onTapUp: _onTapUp,
       scaleStateChangedCallback: _onScaleStateChanged,
-      heroAttributes: heroAttributes,
+      heroAttributes: isCurrent ? heroAttributes : null,
       filterQuality: FilterQuality.high,
       basePosition: Alignment.center,
       disableScaleGestures: _showingDetails,
@@ -540,9 +544,7 @@ class _AssetPageState extends ConsumerState<AssetPage> {
                   height: viewportHeight,
                   child: _buildPhotoView(
                     asset: displayAsset,
-                    heroAttributes: isCurrent
-                        ? PhotoViewHeroAttributes(tag: '${asset.heroTag}_${widget.heroOffset}')
-                        : null,
+                    heroAttributes: PhotoViewHeroAttributes(tag: '${asset.heroTag}_${widget.heroOffset}'),
                     isCurrent: isCurrent,
                     isPlayingMotionVideo: isPlayingMotionVideo,
                     localFilePath: viewIntentFilePath,
